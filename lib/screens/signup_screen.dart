@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/image_picker.dart';
 import '../utils/avatar_helper.dart';
 import '../services/firestore_service.dart';
+import '../routes/routes.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -121,7 +122,9 @@ class _SignupScreenState extends State<SignupScreen> {
             avatar: _selectedAvatar,
           );
         }
-        // AuthWrapper handles reactive redirect to DashboardScreen
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, Routes.dashboard, (route) => false);
+        }
       } on FirebaseAuthException catch (e) {
         debugPrint('Signup FirebaseAuthException: [${e.code}] ${e.message}');
         String errorMessage = 'An error occurred. Please try again.';

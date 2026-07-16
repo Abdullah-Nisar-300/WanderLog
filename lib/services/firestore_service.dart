@@ -50,19 +50,39 @@ class FirestoreService {
     await _db.collection('trips').add(trip.toFirestore(ownerId));
   }
 
-  // Read Trips for a specific owner ordered by creation date descending
+  // Read Trips for a specific owner ordered by creation date descending (in-memory sort to avoid requiring composite indexes)
   Stream<List<Trip>> getTripsStream(String ownerId) {
-    // Firestore rules note: In production, access is restricted by ownerId field.
     return _db
         .collection('trips')
         .where('ownerId', isEqualTo: ownerId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Trip.fromFirestore(doc.id, doc.data());
+      final trips = snapshot.docs.map((doc) {
+        return _TripWithCreatedAt(
+          trip: Trip.fromFirestore(doc.id, doc.data()),
+          createdAt: doc.data()['createdAt'],
+        );
       }).toList();
+
+      trips.sort((a, b) {
+        final aTime = _parseCreatedAt(a.createdAt);
+        final bTime = _parseCreatedAt(b.createdAt);
+        return bTime.compareTo(aTime);
+      });
+
+      return trips.map((t) => t.trip).toList();
     });
+  }
+
+  DateTime _parseCreatedAt(dynamic createdAt) {
+    if (createdAt == null) return DateTime.fromMillisecondsSinceEpoch(0);
+    if (createdAt is String) {
+      return DateTime.tryParse(createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    if (createdAt is Timestamp) {
+      return createdAt.toDate();
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   // Read a single Trip document
@@ -173,4 +193,14 @@ class FirestoreService {
         .doc(memoryId)
         .delete();
   }
+}
+
+class _TripWithCreatedAt {
+  final Trip trip;
+  final dynamic createdAt;
+
+  _TripWithCreatedAt({
+    required this.trip,
+    required this.createdAt,
+  });
 }

@@ -36,7 +36,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _handleLogout() async {
     await FirebaseAuth.instance.signOut();
-    // AuthWrapper reactively handles redirect
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, Routes.login, (route) => false);
+    }
   }
 
   Future<void> _updateProfilePhoto(String uid, String dataUrl) async {

@@ -104,178 +104,180 @@ class _ExplorerScreenState extends State<ExplorerScreen> {
     final mediaQuery = MediaQuery.of(context);
     final isTablet = mediaQuery.size.width > 600;
 
-    final bodyContent = Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: isTablet ? mediaQuery.size.width * 0.15 : 24.0,
-        vertical: 24.0,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Screen Header
-          const Text(
-            'Explorer Tool',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
+    final bodyContent = SingleChildScrollView(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+          horizontal: isTablet ? mediaQuery.size.width * 0.15 : 24.0,
+          vertical: 24.0,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Screen Header
+            const Text(
+              'Explorer Tool',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Orient yourself in new destinations',
-            style: TextStyle(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white54
-                  : Colors.black54,
-              fontSize: 13,
+            const SizedBox(height: 8),
+            Text(
+              'Orient yourself in new destinations',
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white54
+                    : Colors.black54,
+                fontSize: 13,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 48),
+            const SizedBox(height: 48),
 
-          // Interactive Compass Widget
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              // Outer Glowing Ring
-              Container(
-                width: isTablet ? 280 : 220,
-                height: isTablet ? 280 : 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.transparent,
-                  border: Border.all(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
-                    width: 8,
+            // Interactive Compass Widget
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Outer Glowing Ring
+                Container(
+                  width: isTablet ? 280 : 220,
+                  height: isTablet ? 280 : 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.transparent,
+                    border: Border.all(
+                      color: const Color(0xFF6366F1).withOpacity(0.2),
+                      width: 8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      )
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.1),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                    )
+                ),
+                // Inner Compass Dial
+                Container(
+                  width: isTablet ? 240 : 190,
+                  height: isTablet ? 240 : 190,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1E1E2F),
+                    border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.5), width: 2),
+                  ),
+                  child: CustomPaint(
+                    painter: CompassDialPainter(),
+                  ),
+                ),
+
+                // Rotating Needle
+                Transform.rotate(
+                  angle: -_heading * (pi / 180), // Counter-rotate to mimic actual compass pointing north
+                  child: Icon(
+                    Icons.explore_rounded,
+                    size: isTablet ? 120 : 96,
+                    color: const Color(0xFF818CF8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+
+            // Heading Readings
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  _getDirectionLetter(_heading),
+                  style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF818CF8),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_heading.toStringAsFixed(0)}°',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _sensorAvailable
+                  ? 'Compass Active (using Magnetometer sensor)'
+                  : 'Compass not available on this device',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: _sensorAvailable ? Colors.greenAccent : Colors.orangeAccent,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Simulation Slider Card
+            Card(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(
+                    Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.6,
+                  ),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white10
+                      : Colors.black12,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: Column(
+                  children: [
+                    Text(
+                      'Simulate Device Heading Rotation',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : Colors.black54,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Slider(
+                      value: _heading,
+                      min: 0.0,
+                      max: 360.0,
+                      divisions: 360,
+                      activeColor: const Color(0xFF6366F1),
+                      inactiveColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white12
+                          : Colors.black12,
+                      label: '${_heading.toStringAsFixed(0)}°',
+                      onChanged: (value) {
+                        setState(() {
+                          _heading = value;
+                        });
+                      },
+                    ),
                   ],
                 ),
               ),
-              // Inner Compass Dial
-              Container(
-                width: isTablet ? 240 : 190,
-                height: isTablet ? 240 : 190,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF1E1E2F),
-                  border: Border.all(color: const Color(0xFF818CF8).withOpacity(0.5), width: 2),
-                ),
-                child: CustomPaint(
-                  painter: CompassDialPainter(),
-                ),
-              ),
-
-              // Rotating Needle
-              Transform.rotate(
-                angle: -_heading * (pi / 180), // Counter-rotate to mimic actual compass pointing north
-                child: Icon(
-                  Icons.explore_rounded,
-                  size: isTablet ? 120 : 96,
-                  color: const Color(0xFF818CF8),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 40),
-
-          // Heading Readings
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                _getDirectionLetter(_heading),
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF818CF8),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${_heading.toStringAsFixed(0)}°',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _sensorAvailable
-                ? 'Compass Active (using Magnetometer sensor)'
-                : 'Compass not available on this device',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: _sensorAvailable ? Colors.greenAccent : Colors.orangeAccent,
             ),
-          ),
-          const SizedBox(height: 32),
-
-          // Simulation Slider Card
-          Card(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(
-                  Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.6,
-                ),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white10
-                    : Colors.black12,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Column(
-                children: [
-                  Text(
-                    'Simulate Device Heading Rotation',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white70
-                          : Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Slider(
-                    value: _heading,
-                    min: 0.0,
-                    max: 360.0,
-                    divisions: 360,
-                    activeColor: const Color(0xFF6366F1),
-                    inactiveColor: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white12
-                        : Colors.black12,
-                    label: '${_heading.toStringAsFixed(0)}°',
-                    onChanged: (value) {
-                      setState(() {
-                        _heading = value;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 

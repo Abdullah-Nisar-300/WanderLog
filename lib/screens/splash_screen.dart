@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../routes/routes.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -25,10 +26,15 @@ class _SplashScreenState extends State<SplashScreen> {
       });
     });
 
-    // Auto-navigate to Login after 2.5 seconds
+    // Auto-navigate to Login or Dashboard after 2.5 seconds
     Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, Routes.login);
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          Navigator.pushReplacementNamed(context, Routes.dashboard);
+        } else {
+          Navigator.pushReplacementNamed(context, Routes.login);
+        }
       }
     });
   }

@@ -164,9 +164,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ListTile(
               leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
               title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context); // Close Drawer
-                Navigator.pushReplacementNamed(context, Routes.login);
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(context, Routes.login, (route) => false);
+                }
               },
             ),
             const SizedBox(height: 16),

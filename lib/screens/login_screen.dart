@@ -117,7 +117,9 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-        // AuthWrapper handles reactive redirect to DashboardScreen
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, Routes.dashboard);
+        }
       } on FirebaseAuthException catch (e) {
         debugPrint('Login FirebaseAuthException: [${e.code}] ${e.message}');
         String errorMessage = 'An error occurred. Please try again.';
