@@ -175,12 +175,14 @@ class FirestoreService {
         .collection('trips')
         .doc(tripId)
         .collection('memories')
-        .orderBy('dateAdded', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final memories = snapshot.docs.map((doc) {
         return Memory.fromFirestore(doc.id, doc.data());
       }).toList();
+
+      memories.sort((a, b) => b.dateAdded.compareTo(a.dateAdded));
+      return memories;
     });
   }
 

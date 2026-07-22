@@ -2,11 +2,15 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/dummy_data.dart';
 import '../models/models.dart';
 import '../routes/routes.dart';
 import '../widgets/expense_tile.dart';
+import '../widgets/memory_image_widget.dart';
 import '../services/firestore_service.dart';
+import '../services/currency_service.dart';
 import '../utils/image_picker.dart';
 import '../services/location_service.dart';
 import 'dart:io';
@@ -175,9 +179,19 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           length: 3,
           child: Scaffold(
             appBar: AppBar(
-              title: Text(
-                trip.name,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trip.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  if (trip.startingPoint.isNotEmpty)
+                    Text(
+                      'From ${trip.startingPoint}',
+                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                ],
               ),
               actions: [
                 // Trip Map action button
@@ -498,90 +512,94 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   // EXPENSES TAB
   // ==========================================
   Widget _buildExpensesTab(Trip trip) {
-    final String currencyCode = DummyData.userProfile['homeCurrency'] ?? 'USD';
-    String currencySymbol = '\$';
-    if (currencyCode == 'PKR') {
-      currencySymbol = 'Rs ';
-    } else if (currencyCode == 'EUR') {
-      currencySymbol = '€';
-    } else if (currencyCode == 'JPY') {
-      currencySymbol = '¥';
-    } else if (currencyCode == 'CHF') {
-      currencySymbol = 'Fr';
-    }
+    final user = FirebaseAuth.instance.currentUser;
 
-    return StreamBuilder<List<Expense>>(
-      stream: FirestoreService.instance.getExpensesStream(trip.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF6366F1),
-            ),
-          );
-        }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirestoreService.instance.getUserStream(user?.uid ?? ''),
+      builder: (context, userSnapshot) {
+        final userData = (userSnapshot.hasData && userSnapshot.data!.data() != null)
+            ? userSnapshot.data!.data()!
+            : {};
+        final targetCurrency = userData['homeCurrency'] as String? ?? DummyData.userProfile['homeCurrency'] ?? 'USD';
 
-        final expensesList = snapshot.data ?? [];
-        final totalSpent = expensesList.fold(0.0, (sum, item) => sum + item.amount);
-        final budgetFraction = trip.budget > 0 ? (totalSpent / trip.budget).clamp(0.0, 1.0) : 0.0;
-        final isBudgetExceeded = totalSpent >= (trip.budget * _budgetAlertThreshold);
-
-        return Scaffold(
-          floatingActionButton: FloatingActionButton(
-            heroTag: 'add_expense_fab',
-            onPressed: () => _showAddExpenseBottomSheet(trip),
-            backgroundColor: const Color(0xFF6366F1),
-            child: const Icon(Icons.add_shopping_cart_rounded, color: Colors.white),
-          ),
-          body: Column(
-            children: [
-              // Budget Health Panel
-              Card(
-                margin: const EdgeInsets.all(16.0),
-                elevation: 0,
-                color: isBudgetExceeded ? Colors.redAccent.withOpacity(0.1) : const Color(0xFF6366F1).withOpacity(0.08),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isBudgetExceeded ? Colors.redAccent.withOpacity(0.3) : const Color(0xFF6366F1).withOpacity(0.2),
-                  ),
+        return StreamBuilder<List<Expense>>(
+          stream: FirestoreService.instance.getExpensesStream(trip.id),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF6366F1),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Total Expenses Logged', style: TextStyle(fontSize: 12, color: Colors.white60)),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$currencySymbol${totalSpent.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: isBudgetExceeded ? Colors.redAccent : Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text('Limit / Budget', style: TextStyle(fontSize: 12, color: Colors.white60)),
-                              const SizedBox(height: 4),
-                              Text(
-                                '$currencySymbol${trip.budget.toStringAsFixed(0)}',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ],
+              );
+            }
+
+            final expensesList = snapshot.data ?? [];
+            final totalSpent = expensesList.fold(0.0, (sum, item) {
+              return sum + CurrencyService.instance.convert(item.amount, item.currency, targetCurrency);
+            });
+            final convertedBudget = CurrencyService.instance.convert(trip.budget, 'USD', targetCurrency);
+            final budgetFraction = convertedBudget > 0 ? (totalSpent / convertedBudget).clamp(0.0, 1.0) : 0.0;
+            final isBudgetExceeded = totalSpent >= (convertedBudget * _budgetAlertThreshold);
+
+            final formattedSpent = CurrencyService.instance.format(totalSpent, targetCurrency, decimals: 2);
+            final formattedBudget = CurrencyService.instance.format(convertedBudget, targetCurrency, decimals: 0);
+
+            return Scaffold(
+              floatingActionButton: FloatingActionButton(
+                heroTag: 'add_expense_fab',
+                onPressed: () => _showAddExpenseBottomSheet(trip),
+                backgroundColor: const Color(0xFF6366F1),
+                child: const Icon(Icons.add_shopping_cart_rounded, color: Colors.white),
+              ),
+              body: Column(
+                children: [
+                  // Budget Health Panel
+                  Card(
+                    margin: const EdgeInsets.all(16.0),
+                    elevation: 0,
+                    color: isBudgetExceeded ? Colors.redAccent.withOpacity(0.1) : const Color(0xFF6366F1).withOpacity(0.08),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isBudgetExceeded ? Colors.redAccent.withOpacity(0.3) : const Color(0xFF6366F1).withOpacity(0.2),
                       ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Total Expenses Logged', style: TextStyle(fontSize: 12, color: Colors.white60)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    formattedSpent,
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: isBudgetExceeded ? Colors.redAccent : Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text('Limit / Budget', style: TextStyle(fontSize: 12, color: Colors.white60)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    formattedBudget,
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                       const SizedBox(height: 16),
                       
                       // LinearProgressIndicator used to show budget depletion
@@ -665,7 +683,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         );
       },
     );
-  }
+  },
+);
+}
 
   void _showAddExpenseBottomSheet(Trip trip) {
     final amountController = TextEditingController();
@@ -917,6 +937,26 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           );
         }
 
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Error loading memories: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.redAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         final memories = snapshot.data ?? [];
 
         return Scaffold(
@@ -960,29 +1000,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       borderRadius: BorderRadius.circular(16),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          memory.imageUrl,
+                        child: MemoryImageWidget(
+                          imageUrl: memory.imageUrl,
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: Colors.white10,
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFF6366F1),
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.white10,
-                              child: const Center(
-                                child: Icon(Icons.photo_rounded, color: Colors.white30, size: 36),
-                              ),
-                            );
-                          },
                         ),
                       ),
                     );
@@ -1254,7 +1274,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     Navigator.pop(context);
 
                     // Show SnackBar Progress Indicator
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    final messenger = ScaffoldMessenger.of(context);
+                    messenger.showSnackBar(
                       const SnackBar(
                         content: Row(
                           children: [
@@ -1278,7 +1299,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       // 1. Upload to Firebase Storage
                       final downloadUrl = await StorageService.instance.uploadTripImage(trip.id, selectedFile!);
 
-                      // 2. Save Memory document to Firestore
+                      // 2. Save Memory document to Firestore (with location fallback)
                       final newMemory = Memory(
                         id: '',
                         imageUrl: downloadUrl,
@@ -1286,15 +1307,15 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             ? captionController.text.trim()
                             : 'Scenic vacation memory',
                         dateAdded: DateTime.now(),
-                        latitude: latitude,
-                        longitude: longitude,
+                        latitude: latitude ?? 33.9070,
+                        longitude: longitude ?? 73.3903,
                       );
 
                       await FirestoreService.instance.addMemory(trip.id, newMemory);
 
                       if (mounted) {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.hideCurrentSnackBar();
+                        messenger.showSnackBar(
                           const SnackBar(
                             content: Text('Memory photo added successfully!'),
                             backgroundColor: Colors.green,
@@ -1304,8 +1325,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.hideCurrentSnackBar();
+                        messenger.showSnackBar(
                           SnackBar(
                             content: Text('Failed to save memory: $e'),
                             backgroundColor: Colors.redAccent,
@@ -1341,14 +1362,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  memory.imageUrl,
+                child: MemoryImageWidget(
+                  imageUrl: memory.imageUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 200,
-                    color: Colors.white10,
-                    child: const Icon(Icons.image, size: 50, color: Colors.white30),
-                  ),
                 ),
               ),
               Padding(

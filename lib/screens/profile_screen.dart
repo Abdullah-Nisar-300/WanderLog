@@ -345,10 +345,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       underline: const SizedBox(),
                       items: const [
                         DropdownMenuItem(value: 'USD', child: Text('USD (\$)', style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem(value: 'EUR', child: Text('EUR (€)', style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem(value: 'JPY', child: Text('JPY (¥)', style: TextStyle(fontSize: 13))),
-                        DropdownMenuItem(value: 'CHF', child: Text('CHF (Fr)', style: TextStyle(fontSize: 13))),
                         DropdownMenuItem(value: 'PKR', child: Text('PKR (Rs)', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(value: 'EUR', child: Text('EUR (€)', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(value: 'GBP', child: Text('GBP (£)', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(value: 'JPY', child: Text('JPY (¥)', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(value: 'CAD', child: Text('CAD (C\$)', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(value: 'AED', child: Text('AED (AED)', style: TextStyle(fontSize: 13))),
+                        DropdownMenuItem(value: 'CHF', child: Text('CHF (Fr)', style: TextStyle(fontSize: 13))),
                       ],
                       onChanged: (value) async {
                         if (value != null) {

@@ -211,6 +211,7 @@ class PackingItem {
 class Trip {
   final String id;
   final String name;
+  final String startingPoint;
   final String coverImageUrl;
   final DateTime startDate;
   final DateTime endDate;
@@ -223,6 +224,7 @@ class Trip {
   Trip({
     required this.id,
     required this.name,
+    this.startingPoint = '',
     required this.coverImageUrl,
     required this.startDate,
     required this.endDate,
@@ -240,6 +242,7 @@ class Trip {
   Trip copyWith({
     String? id,
     String? name,
+    String? startingPoint,
     String? coverImageUrl,
     DateTime? startDate,
     DateTime? endDate,
@@ -252,6 +255,7 @@ class Trip {
     return Trip(
       id: id ?? this.id,
       name: name ?? this.name,
+      startingPoint: startingPoint ?? this.startingPoint,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
@@ -267,6 +271,7 @@ class Trip {
     return {
       'ownerId': ownerId,
       'name': name,
+      'startingPoint': startingPoint,
       'coverImageUrl': coverImageUrl,
       'startDate': startDate.toIso8601String(),
       'endDate': endDate.toIso8601String(),
@@ -281,6 +286,7 @@ class Trip {
     return Trip(
       id: docId,
       name: map['name'] ?? '',
+      startingPoint: map['startingPoint'] ?? '',
       coverImageUrl: map['coverImageUrl'] ?? '',
       startDate: DateTime.tryParse(map['startDate'] ?? '') ?? DateTime.now(),
       endDate: DateTime.tryParse(map['endDate'] ?? '') ?? DateTime.now(),
